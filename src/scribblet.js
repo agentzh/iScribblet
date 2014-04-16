@@ -35,11 +35,12 @@
         lastX,
         lastY,
         exportData,
-        scrollTop;
+        scrollTop,
+        scrollLeft;
 
     // "Constant" definitions
     LINE_COLORS = ['red', 'lime', 'blue', 'black'];
-    LINE_WIDTH = 3;
+    LINE_WIDTH = 2;
 
     exportData = '';
 
@@ -58,6 +59,7 @@
     };
 
     scrollTop = _documentBody.scrollTop;
+    scrollLeft = _documentBody.scrollLeft;
 
     _absolute = 'absolute';
     _pixels = 'px';
@@ -176,8 +178,10 @@
 
     temp = _window.onresize = function() {
         canvas.style.top = scrollTop + _pixels;
+        canvas.style.left = scrollLeft + _pixels;
         canvas.width = _documentBody.clientWidth;
         canvas.height = _window.innerHeight;
+        // TODO take zoom ratio into account here
         repaint();
     };
     temp();
@@ -185,9 +189,17 @@
     temp = _window.onscroll = function() {
         scrollTop = _documentBody.scrollTop ||
             _document.documentElement.scrollTop;
+        scrollLeft = _documentBody.scrollLeft ||
+            _document.documentElement.scrollLeft;
+
         textDisplay.style.top = scrollTop + _pixels;
         canvas.style.top = scrollTop + _pixels;
         copyPasteBin.style.top = scrollTop + _pixels;
+
+        textDisplay.style.left = scrollLeft + _pixels;
+        canvas.style.left = scrollLeft + _pixels;
+        copyPasteBin.style.left = scrollLeft + _pixels;
+
         repaint();
     };
     temp();
@@ -305,7 +317,7 @@
                 beginPath();
                 moveTo(lastX, lastY);
                 lineTo(temp, temp2);
-                strokeStyle = 'blue';
+                strokeStyle = strokeColor;
                 lineWidth = LINE_WIDTH;
                 stroke();
             }
