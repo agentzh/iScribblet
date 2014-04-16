@@ -254,20 +254,20 @@
 
     /*
     canvas.addEventListener("touchend", function(e) {
-            if (e.touches.length == 1) {
-                if (!isMouseDown) {
-                    return;
-                }
-        isMouseDown = false;
-        scribble.push(e.touches[0].clientX);
-        scribble.push(e.touches[0].clientY + scrollTop);
-        scribble.push(-1);
-
-        exportScribble();
-        repaint();
-                e.preventDefault();
-                return false;
+        if (e.touches.length == 1) {
+            if (!isMouseDown) {
+                return;
             }
+            isMouseDown = false;
+            scribble.push(e.touches[0].clientX);
+            scribble.push(e.touches[0].clientY + scrollTop);
+            scribble.push(-1);
+
+            exportScribble();
+            repaint();
+            e.preventDefault();
+            return false;
+        }
     });
     */
 
