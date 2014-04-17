@@ -18,9 +18,7 @@
         _window,
         _document,
         _documentBody,
-        copyPasteBin,
         textDisplay,
-        textDisplayStyle,
         strokeColor,
         colorIndex,
         canvas,
@@ -86,59 +84,47 @@
     with (canvas.style) {
         position = _absolute;
         left = top = _zeroPixels;
-        zIndex = '200';
+        zIndex = '199';
         cursor = 'crosshair';
     }
     _appendChild(_documentBody, canvas);
     canvasContext = canvas.getContext('2d');
 
     textDisplay = _createElement('div');
-    _appendChild(textDisplay,
-        _document.createTextNode('Press \'E\' to email scribble, CTRL + C to copy scribble to clipboard, CTRL + V to paste scribble from clipboard, UP/DOWN to change color, DEL to clear, ESC or \'X\' to close.'));
     with (textDisplay.style) {
         background = '#FFF';
         border = '1px solid #000';
-        padding = '5px';
-        font = 'bold 11px sans-serif';
-        position = _absolute;
-        zIndex = '199';
+        margin = '15px';
+        position = 'fixed';
+        zIndex = '200';
         background = '#F2F2F2';
         opacity = MozOpacity = '0.9';
-        top = _zeroPixels;
+        top = 50 + _pixels;
+        left = 50 + _pixels;
     }
+
+    var aTag = _createElement('a');
+    with (aTag) {
+        innerHTML = '<span style="padding: 2em">Scroll</span>';
+        border = 'none';
+        padding = '20px';
+        margin = '10px';
+        font = 'bold 14px sans-serif';
+        position = 'static';
+    }
+    _appendChild(textDisplay, aTag);
+
+    var scrollMode = false;
+
+    function toggleScroll() {
+        scrollMode = !scrollMode;
+        textDisplay.style.background = (scrollMode ? '#929292' : '#F2F2F2');
+        return false;
+    }
+
+    aTag.addEventListener("click", toggleScroll, false);
+
     _appendChild(_documentBody, textDisplay);
-
-    copyPasteBin = _createElement('input');
-    with (copyPasteBin.style) {
-        position = _absolute;
-        left = '-1000' + _pixels;
-        top = scrollTop + _pixels
-    }
-    _document.onfocus = function() {
-        with (copyPasteBin) {
-            value = exportData;
-            focus();
-            select();
-        }
-    };
-    _appendChild(_documentBody, copyPasteBin);
-    _document.onfocus();
-
-    function handlePaste() {
-        if (copyPasteBin.value.length < 3) {
-            copyPasteBin.value = '';
-            return;
-        }
-        scribble = copyPasteBin.value.split(/,/g);
-        _window.resizeBy(scribble.shift() - _documentBody.clientWidth, 0);
-        colorIndex = parseInt(scribble.shift());
-        strokeColor = LINE_COLORS[colorIndex];
-        repaint();
-        exportScribble();
-        _document.onfocus();
-    }
-
-    copyPasteBin.addEventListener('input', handlePaste, false);
 
     // Repaints the scribble
     function repaint() {
@@ -175,9 +161,6 @@
         scribble.unshift(colorIndex);
         scribble.unshift(_documentBody.clientWidth);
         exportData = scribble.join(',');
-        copyPasteBin.value = exportData;
-        copyPasteBin.focus();
-        copyPasteBin.select();
         scribble.shift();
         scribble.shift();
     }
@@ -201,13 +184,11 @@
         scrollLeft = _documentBody.scrollLeft ||
             _document.documentElement.scrollLeft;
 
-        textDisplay.style.top = scrollTop + _pixels;
+        //textDisplay.style.top = scrollTop + 50 + _pixels;
         canvas.style.top = scrollTop + _pixels;
-        copyPasteBin.style.top = scrollTop + _pixels;
 
-        textDisplay.style.left = scrollLeft + _pixels;
+        //textDisplay.style.left = scrollLeft + 50 +  _pixels;
         canvas.style.left = scrollLeft + _pixels;
-        copyPasteBin.style.left = scrollLeft + _pixels;
 
         repaint();
     };
@@ -233,44 +214,37 @@
     };
     */
 
-    timer = null;
-    var InScrolling = false;
-    clearScrollingState = function () { InScrolling = false; };
-
     canvas.addEventListener("touchstart", function(e) {
-        if (e.touches.length > 1) {
-            if (timer) {
-                window.clearTimeout(timer);
-            }
-            InScrolling = true;
-            timer = window.setTimeout(clearScrollingState, 500)
+        if (scrollMode) {
             return true;
         }
 
-        if (InScrolling) {
-            return true;
-        }
-
-        if (e.touches.length == 1) {
-            if (isMouseDown) {
-                scribble.push(-1);
+        var x, y;
+        var touches = e.touches;
+        var len = touches.length;
+        for (i = 0; i < len; i++) {
+            var t = touches[i]
+            if (x == undefined || t.clientX < x) {
+                /* assuming it is right-hand */
+                x = t.clientX;
+                y = t.clientY;
             }
-
-            //scribble.push(-1);
-            var x = e.touches[0].clientX
-            var y = e.touches[0].clientY
-
-            lastX = x;
-            lastY = y;
-
-            isMouseDown = true;
-
-            //alert("touch start: " + lastX + ", " + lastY);
-            scribble.push(lastX + scrollLeft);
-            scribble.push(lastY + scrollTop);
-            e.preventDefault();
-            return false;
         }
+
+        if (isMouseDown) {
+            scribble.push(-1);
+        }
+
+        lastX = x;
+        lastY = y;
+
+        isMouseDown = true;
+
+        //alert("touch start: " + lastX + ", " + lastY);
+        scribble.push(lastX + scrollLeft);
+        scribble.push(lastY + scrollTop);
+        e.preventDefault();
+        return false;
     });
 
     /*
@@ -293,49 +267,51 @@
     */
 
     canvas.addEventListener("touchmove", function(e) {
-        if (e.touches.length > 1) {
-            if (timer) {
-                window.clearTimeout(timer);
-            }
-            InScrolling = true;
-            timer = window.setTimeout(clearScrollingState, 500)
+        if (scrollMode) {
             return true;
         }
 
-        if (InScrolling) {
-            return true;
-        }
-
-        if (e.touches.length == 1) {
-            if (!isMouseDown)
-                return true;
-            temp = e.touches[0].clientX;
-            temp2 = e.touches[0].clientY;
-
-            if (lastX >= 0 && lastY >= 0) {
-                if (Math.abs(temp - lastX) >= 50 || Math.abs(temp2 - lastY) >= 50) {
-                    return;
-                }
-            }
-
-            //alert("touch move: " + temp + " " + temp2);
-            scribble.push(temp + scrollLeft);
-            scribble.push(temp2 + scrollTop);
-
-            with (canvasContext) {
-                beginPath();
-                moveTo(lastX, lastY);
-                lineTo(temp, temp2);
-                strokeStyle = strokeColor;
-                lineWidth = LINE_WIDTH;
-                stroke();
-            }
-
-            lastX = temp;
-            lastY = temp2;
+        if (!isMouseDown) {
             e.preventDefault();
             return false;
         }
+
+        var x, y;
+        var touches = e.touches;
+        var len = touches.length;
+        for (i = 0; i < len; i++) {
+            var t = touches[i]
+            if (x == undefined || t.clientX < x) {
+                /* assuming it is right-hand */
+                x = t.clientX;
+                y = t.clientY;
+            }
+        }
+
+        if (lastX >= 0 && lastY >= 0) {
+            if (Math.abs(x - lastX) >= 30 || Math.abs(y - lastY) >= 30) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        //alert("touch move: " + temp + " " + temp2);
+        scribble.push(x + scrollLeft);
+        scribble.push(y + scrollTop);
+
+        with (canvasContext) {
+            beginPath();
+            moveTo(lastX, lastY);
+            lineTo(x, y);
+            strokeStyle = strokeColor;
+            lineWidth = LINE_WIDTH;
+            stroke();
+        }
+
+        lastX = x;
+        lastY = y;
+        e.preventDefault();
+        return false;
     });
 
     /*
@@ -361,65 +337,4 @@
         lastY = temp2;
     };
     */
-
-    copyPasteBin.onkeyup = function(e) {
-        switch (e.keyCode) {
-            // Paste
-            case 86:
-                if (e.ctrlKey)
-                    handlePaste();
-                break;
-            // ESC or X - Close
-            case 27:
-            case 88:
-                _documentBody.removeChild(canvas);
-                _documentBody.removeChild(textDisplay);
-                _documentBody.removeChild(copyPasteBin);
-                _document.onfocus = _window.onresize = _window.onscroll = null;
-                copyPasteBin.removeEventListener('input', handlePaste, false);
-                break;
-            // UP/DOWN - Change color
-            case 38:
-            case 40:
-                colorIndex += 39 - e.keyCode;
-                if (colorIndex < 0) colorIndex = LINE_COLORS.length - 1;
-                strokeColor = LINE_COLORS[colorIndex % LINE_COLORS.length];
-                exportScribble();
-                repaint();
-                break;
-            // E - Email
-            case 69:
-                temp4 = _createElement('form');
-                with (temp4) {
-                    action = 'mailto:';
-                    method = 'post';
-                    enctype = 'text/plain';
-                    style.visibility = 'hidden';
-                }
-                temp5 = _createElement('textarea');
-                temp5.name = 'Message';
-                temp5.value = '\n1. Go to: ' + _window.location.href +
-                    '\n\n2. Press \'Scribble here!\' (or go to http://scribblet.org)\n\n3. Paste this into the document:\n' +
-                    exportData;
-                _appendChild(temp4, temp5);
-                _appendChild(_documentBody, temp4);
-                try {
-                    // This fixes a problem with Safari
-                    if (escape(temp5.value).length >= 1980)
-                        throw 0;
-                    temp4.submit();
-                } catch (e) {
-                    _window.prompt('Could not create email. Copy & paste this instead:',
-                        temp5.value);
-                    _window.location.href = 'mailto:';
-                }
-                _documentBody.removeChild(temp4);
-                break;
-            // DEL - Clear
-            case 46:
-                scribble.length = 0;
-                exportScribble();
-                repaint();
-        }
-    };
 })();
