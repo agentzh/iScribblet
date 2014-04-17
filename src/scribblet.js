@@ -65,6 +65,15 @@
     _pixels = 'px';
     _zeroPixels = '0px';
 
+    /*
+    var meta = _createElement("meta")
+    with (meta) {
+        name = "viewport";
+        content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    }
+    document.getElementsByTagName('head')[0].appendChild(meta);
+    */
+
     // Current stroke color
     colorIndex = 0;
     strokeColor = LINE_COLORS[0];
@@ -149,11 +158,11 @@
                     lastX = -1;
                     ++temp;
                 } else if (lastX == -1) {
-                    lastX = scribble[temp++];
+                    lastX = scribble[temp++] - scrollLeft;
                     lastY = scribble[temp++] - scrollTop;
                     moveTo(lastX, lastY);
                 } else {
-                    lineTo(scribble[temp++], scribble[temp++] -
+                    lineTo(scribble[temp++] - scrollLeft, scribble[temp++] -
                         scrollTop);
                 }
             }
@@ -209,13 +218,13 @@
         isMouseDown = true;
         lastX = e.clientX;
         lastY = e.clientY;
-        scribble.push(lastX);
+        scribble.push(lastX + scrollLeft);
         scribble.push(lastY + scrollTop);
     };
 
     canvas.onmouseup = function(e) {
         isMouseDown = false;
-        scribble.push(e.clientX);
+        scribble.push(e.clientX + scrollLeft);
         scribble.push(e.clientY + scrollTop);
         scribble.push(-1);
 
@@ -257,7 +266,7 @@
             isMouseDown = true;
 
             //alert("touch start: " + lastX + ", " + lastY);
-            scribble.push(lastX);
+            scribble.push(lastX + scrollLeft);
             scribble.push(lastY + scrollTop);
             e.preventDefault();
             return false;
@@ -271,7 +280,7 @@
                 return;
             }
             isMouseDown = false;
-            scribble.push(e.touches[0].clientX);
+            scribble.push(e.touches[0].clientX + scrollLeft);
             scribble.push(e.touches[0].clientY + scrollTop);
             scribble.push(-1);
 
@@ -310,7 +319,7 @@
             }
 
             //alert("touch move: " + temp + " " + temp2);
-            scribble.push(temp);
+            scribble.push(temp + scrollLeft);
             scribble.push(temp2 + scrollTop);
 
             with (canvasContext) {
@@ -336,7 +345,7 @@
         temp = e.clientX;
         temp2 = e.clientY;
 
-        scribble.push(temp);
+        scribble.push(temp + scrollLeft);
         scribble.push(temp2 + scrollTop);
 
         with (canvasContext) {
