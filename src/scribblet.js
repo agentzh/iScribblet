@@ -38,7 +38,7 @@
 
     // "Constant" definitions
     LINE_COLORS = ['red', 'lime', 'blue', 'black'];
-    LINE_WIDTH = 2;
+    LINE_WIDTH = 1;
 
     exportData = '';
 
@@ -63,18 +63,16 @@
     _pixels = 'px';
     _zeroPixels = '0px';
 
-    /*
     var meta = _createElement("meta")
     with (meta) {
         name = "viewport";
-        content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        content = "minimal-ui"
     }
     document.getElementsByTagName('head')[0].appendChild(meta);
-    */
 
     // Current stroke color
     colorIndex = 0;
-    strokeColor = LINE_COLORS[0];
+    strokeColor = 'red';
 
     // Holds the internal representation of the current scribbble
     scribble = [];
@@ -92,6 +90,7 @@
 
     textDisplay = _createElement('div');
     with (textDisplay.style) {
+        color = '#000';
         background = '#FFF';
         border = '1px solid #000';
         margin = '15px';
@@ -99,57 +98,143 @@
         zIndex = '200';
         background = '#F2F2F2';
         opacity = MozOpacity = '0.9';
-        top = 50 + _pixels;
-        left = 50 + _pixels;
+        top = 15 + _pixels;
+        left = 15 + _pixels;
     }
+    _appendChild(_documentBody, textDisplay);
 
-    var aTag = _createElement('a');
-    with (aTag) {
-        innerHTML = '<span style="padding: 2em">Scroll</span>';
-        border = 'none';
+    var scrollButton = _createElement('a');
+    with (scrollButton) {
+        innerHTML = '<span style="color: #000; padding: 2em">Scroll</span>';
+        border = '5px solid #000';
         padding = '20px';
         margin = '10px';
         font = 'bold 14px sans-serif';
         position = 'static';
     }
-    _appendChild(textDisplay, aTag);
+    _appendChild(textDisplay, scrollButton);
 
     var scrollMode = false;
 
     function toggleScroll() {
+        if (browseMode && scrollMode) {
+            return false;
+        }
         scrollMode = !scrollMode;
-        textDisplay.style.background = (scrollMode ? '#929292' : '#F2F2F2');
+        scrollButton.style.background = (scrollMode ? '#929292' : '#F2F2F2');
         return false;
     }
 
-    aTag.addEventListener("click", toggleScroll, false);
+    scrollButton.addEventListener("click", toggleScroll, false);
 
-    _appendChild(_documentBody, textDisplay);
+    var browseButton = _createElement('a');
+    with (browseButton) {
+        innerHTML = '<span style="color: #000; padding: 1em">Browse</span>';
+        border = '1px solid #000';
+        padding = '15px';
+        margin = '10px';
+        font = 'bold 14px sans-serif';
+        position = 'static';
+    }
+    _appendChild(textDisplay, browseButton);
+
+    var browseMode = false;
+
+    function toggleBrowse() {
+        browseMode = !browseMode;
+        browseButton.style.background = (browseMode ? '#929292' : '#F2F2F2');
+        if (browseMode) {
+            if (!scrollMode) {
+                toggleScroll();
+            }
+            canvas.style.display = 'none';
+
+        } else {
+            if (scrollMode) {
+                toggleScroll();
+            }
+
+            canvas.style.display = 'block';
+        }
+        return false;
+    }
+
+    browseButton.addEventListener("click", toggleBrowse, false);
+
+    var undoButton = _createElement('a');
+    with (undoButton) {
+        innerHTML = '<span style="color: #000; padding: 1em">Undo</span>';
+        border = '1px solid #000';
+        padding = '15px';
+        margin = '10px';
+        font = 'bold 14px sans-serif';
+        position = 'static';
+    }
+    _appendChild(textDisplay, undoButton);
+    function undo() {
+        undoButton.style.background = '#929292';
+        var i = scribble.length - 1;
+        var hit = false;
+        if (scribble[i--] == -1) {
+            scribble.pop();
+        }
+        while (i >= 0) {
+            if (scribble[i--] == -1) {
+                break;
+            }
+            if (!hit) {
+                hit = true;
+            }
+            //alert("poping");
+            scribble.pop();
+        }
+        if (hit) {
+            repaint();
+        }
+        return false;
+    }
+
+    undoButton.addEventListener("mousedown", undo, false);
+    undoButton.addEventListener("mouseup",
+                                function () {
+                                    undoButton.style.background = '#F2F2F2';
+                                }, false);
 
     // Repaints the scribble
     function repaint() {
+        if (browseMode) {
+            return;
+        }
         with (canvasContext) {
-            clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-            temp2 = scribble.length;
-            temp = 0;
+            var w = canvas.offsetWidth;
+            var h = canvas.offsetHeight;
+            clearRect(0, 0, w, h);
+            var len = scribble.length;
+            var i = 0;
             lastX = -1;
             lastY = -1;
             beginPath();
-            while (temp < temp2) {
-                if (scribble[temp] == -1) {
+            while (i < len) {
+                if (scribble[i] == -1) {
                     strokeStyle = strokeColor;
                     lineWidth = LINE_WIDTH;
                     stroke();
                     beginPath();
                     lastX = -1;
-                    ++temp;
+                    ++i;
                 } else if (lastX == -1) {
-                    lastX = scribble[temp++] - scrollLeft;
-                    lastY = scribble[temp++] - scrollTop;
-                    moveTo(lastX, lastY);
+                    lastX = scribble[i++] - scrollLeft;
+                    lastY = scribble[i++] - scrollTop;
+                    if (lastX >= 0 && lastX <= w && lastY >= 0 && lastY <= h) {
+                        moveTo(lastX, lastY);
+                    }
+
                 } else {
-                    lineTo(scribble[temp++] - scrollLeft, scribble[temp++] -
-                        scrollTop);
+                    var x = scribble[i++] - scrollLeft
+                    var y = scribble[i++] - scrollTop
+                    if (x >= 0 && x <= w && y >= 0 && y <= h) {
+                        lineTo(x, y);
+                    }
                 }
             }
             stroke();
@@ -157,6 +242,7 @@
     };
 
     // Load and save routines
+    /*
     function exportScribble() {
         scribble.unshift(colorIndex);
         scribble.unshift(_documentBody.clientWidth);
@@ -164,6 +250,7 @@
         scribble.shift();
         scribble.shift();
     }
+    */
 
     // Event handlers
     isMouseDown = false;
@@ -194,8 +281,11 @@
     };
     temp();
 
-    /*
     canvas.onmousedown = function(e) {
+        if (scrollMode) {
+            return true;
+        }
+
         isMouseDown = true;
         lastX = e.clientX;
         lastY = e.clientY;
@@ -204,15 +294,52 @@
     };
 
     canvas.onmouseup = function(e) {
+        if (scrollMode) {
+            return true;
+        }
+
         isMouseDown = false;
         scribble.push(e.clientX + scrollLeft);
         scribble.push(e.clientY + scrollTop);
         scribble.push(-1);
 
-        exportScribble();
+        //exportScribble();
         repaint();
     };
-    */
+
+    canvas.onmousemove = function(e) {
+        if (scrollMode) {
+            return true;
+        }
+
+        if (!isMouseDown) {
+            return false;
+        }
+
+        var x = e.clientX;
+        var y = e.clientY;
+
+        if (lastX >= 0 && lastY >= 0) {
+            if (Math.abs(x - lastX) >= 30 || Math.abs(y - lastY) >= 30) {
+                return false;
+            }
+        }
+
+        scribble.push(x + scrollLeft);
+        scribble.push(y + scrollTop);
+
+        with (canvasContext) {
+            beginPath();
+            moveTo(lastX, lastY);
+            lineTo(x, y);
+            strokeStyle = strokeColor;
+            lineWidth = LINE_WIDTH;
+            stroke();
+        }
+
+        lastX = x;
+        lastY = y;
+    };
 
     canvas.addEventListener("touchstart", function(e) {
         if (scrollMode) {
@@ -313,28 +440,4 @@
         e.preventDefault();
         return false;
     });
-
-    /*
-    canvas.onmousemove = function(e) {
-        if (!isMouseDown)
-            return;
-        temp = e.clientX;
-        temp2 = e.clientY;
-
-        scribble.push(temp + scrollLeft);
-        scribble.push(temp2 + scrollTop);
-
-        with (canvasContext) {
-            beginPath();
-            moveTo(lastX, lastY);
-            lineTo(temp, temp2);
-            strokeStyle = strokeColor;
-            lineWidth = LINE_WIDTH;
-            stroke();
-        }
-
-        lastX = temp;
-        lastY = temp2;
-    };
-    */
 })();
