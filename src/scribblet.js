@@ -174,23 +174,23 @@
     function undo() {
         undoButton.style.background = '#929292';
         var i = scribble.length - 1;
-        var hit = false;
-        if (scribble[i--] == -1) {
+        var hits = 0;
+        while (i >= 0 && scribble[i] == -1) {
+            i--;
             scribble.pop();
         }
         while (i >= 0) {
             if (scribble[i--] == -1) {
                 break;
             }
-            if (!hit) {
-                hit = true;
-            }
+            hits++;
             //alert("poping");
             scribble.pop();
         }
-        if (hit) {
+        if (hits) {
             repaint();
         }
+        //alert(hits + " hits.");
         return false;
     }
 
@@ -198,6 +198,7 @@
     undoButton.addEventListener("mouseup",
                                 function () {
                                     undoButton.style.background = '#F2F2F2';
+                                    return false;
                                 }, false);
 
     // Repaints the scribble
