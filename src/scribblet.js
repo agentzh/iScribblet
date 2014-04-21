@@ -1,5 +1,6 @@
 /*
- * Scribblet (http://scribblet.org)
+ * iScribblet (https://github.com/agentzh/iScribblet)
+ * Copyright (c) 2014 Yichun Zhang.
  * Copyright (c) 2009 Kai Jäger. Some rights reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
@@ -7,8 +8,6 @@
  */
 
 (function() {
-    // All symbols used inside the code are declared here. This reduces the
-    // number of "var" keywords in the code and helps the minifier do its job.
     var COLORS,
         LINE_COLORS,
         LINE_WIDTH,
@@ -32,7 +31,6 @@
         isMouseDown,
         lastX,
         lastY,
-        exportData,
         scrollTop,
         scrollLeft;
 
@@ -40,7 +38,7 @@
     LINE_COLORS = ['red', 'lime', 'blue', 'black'];
     LINE_WIDTH = 1;
 
-    exportData = '';
+    var saved = true;
 
     // Assign DOM objects and functions to variables. This results in smaller
     // code after minification.
@@ -79,28 +77,27 @@
 
     // Create canvas, info display, copy & paste bin
     canvas = _createElement('canvas');
-    with (canvas.style) {
-        position = _absolute;
-        left = top = _zeroPixels;
-        zIndex = '199';
-        cursor = 'crosshair';
-    }
+    var style = canvas.style;
+    style.position = _absolute;
+    style.left = _zeroPixels;
+    style.top = _zeroPixels;
+    style.zIndex = '199';
+    style.cursor = 'crosshair';
     _appendChild(_documentBody, canvas);
     canvasContext = canvas.getContext('2d');
 
     textDisplay = _createElement('div');
-    with (textDisplay.style) {
-        color = '#000';
-        background = '#FFF';
-        border = '1px solid #000';
-        margin = '15px';
-        position = 'fixed';
-        zIndex = '200';
-        background = '#F2F2F2';
-        opacity = MozOpacity = '0.9';
-        top = 15 + _pixels;
-        left = 15 + _pixels;
-    }
+    style = textDisplay.style;
+    style.color = '#000';
+    style.background = '#FFF';
+    style.border = '1px solid #000';
+    style.margin = '15px';
+    style.position = 'fixed';
+    style.zIndex = '200';
+    style.background = '#F2F2F2';
+    style.opacity = MozOpacity = '0.9';
+    style.top = 15 + _pixels;
+    style.left = 15 + _pixels;
     _appendChild(_documentBody, textDisplay);
 
     var scrollButton = _createElement('a');
@@ -109,7 +106,7 @@
         border = '5px solid #000';
         padding = '20px';
         margin = '10px';
-        font = 'bold 14px sans-serif';
+        font = '14px sans-serif';
         position = 'static';
     }
     _appendChild(textDisplay, scrollButton);
@@ -133,7 +130,7 @@
         border = '1px solid #000';
         padding = '15px';
         margin = '10px';
-        font = 'bold 14px sans-serif';
+        font = '14px sans-serif';
         position = 'static';
     }
     _appendChild(textDisplay, browseButton);
@@ -167,7 +164,7 @@
         border = '1px solid #000';
         padding = '15px';
         margin = '10px';
-        font = 'bold 14px sans-serif';
+        font = '14px sans-serif';
         position = 'static';
     }
     _appendChild(textDisplay, undoButton);
@@ -200,6 +197,162 @@
                                     undoButton.style.background = '#F2F2F2';
                                     return false;
                                 }, false);
+
+
+    var msgArea = _createElement('div');
+    style = msgArea.style
+    style.font = '14px sans-serif';
+    style.border = '1px solid #000';
+    style.background = '#F2F2F2';
+    style.color = '#000';
+    _appendChild(textDisplay, msgArea);
+
+    var hideTimer = null;
+    var url = location.href.replace(/#.*/, '');
+
+    function msg(s) {
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+        msgArea.style.display = 'block';
+        msgArea.textContent = s;
+    }
+
+    function doHideMsg() {
+        msgArea.style.display = 'none';
+    }
+
+    function hideMsg() {
+        if (!hideTimer) {
+            hideTimer = setTimeout(doHideMsg, 3000);
+        }
+    }
+
+    var historyLoaded = false;
+
+    loadHistory();
+
+    function loadHistory() {
+        var ajax = new XMLHttpRequest();
+        ajax.onreadystatechange = function() {
+            if (ajax.readyState == 4) {
+                var status = ajax.status
+                if (status == 200) {
+                    //alert(ajax.responseText);
+                    var json = ajax.responseText;
+                    if (json == "") {
+                        msg("Fetched JSON data is empty");
+                        return
+                    }
+
+                    var hist;
+                    try {
+                        hist = JSON.parse(json);
+
+                    } catch (e) {
+                        msg("Faile to parse JSON: " + e);
+                        return;
+                    }
+
+                    msg("History data loaded.");
+                    hideMsg();
+                    historyLoaded = true;
+
+                    var i
+                    for (i = 0; i < scribble.length; i++) {
+                        hist.push(scribble[i]);
+                    }
+                    scribble = hist;
+                    repaint();
+                    return;
+                }
+
+                var body = ajax.responseText
+                if (body && body.length > 0) {
+                    if (body.length > 30) {
+                        body = body.substring(0, 30)
+                    }
+                } else {
+                    body = ""
+                }
+
+                msg("Failed to fetch data: status=" + ajax.status + ": " + body);
+                setTimeout(loadHistory, 3000);
+                return;
+            }
+        }
+
+        msg("Loading history...");
+        ajax.open("POST", "http://api.iscribblet.org/fetch", true);
+        ajax.setRequestHeader("Content-Type", "text/plain");
+        ajax.send(url);
+    }
+
+    function saveData() {
+        if (!historyLoaded) {
+            // TODO: append new data
+            //msg("history not yet loaded");
+            return;
+        }
+
+        if (saved) {
+            //msg("already saved");
+            return;
+        }
+
+        if (scribble.length == 0) {
+            //msg("no scribble to save");
+            return;
+        }
+
+        var jsonData = JSON.stringify({"url": url, "points": JSON.stringify(scribble)})
+        saved = true;
+
+        var ajax = new XMLHttpRequest();
+        ajax.onreadystatechange = function() {
+            if (ajax.readyState == 4) {
+                var status = ajax.status
+                if (status == 200) {
+                    //alert(ajax.responseText);
+                    var ans = ajax.responseText;
+                    if (ans == "") {
+                        msg("Empty response for saving");
+                        saved = false;
+                        return
+                    }
+
+                    msg(ans);
+                    hideMsg();
+                    return;
+                }
+
+                var body = ajax.responseText
+                if (body && body.length > 0) {
+                    if (body.length > 30) {
+                        body = body.substring(0, 30)
+                    }
+                } else {
+                    body = ""
+                }
+                msg("Failed to store data: status=" + ajax.status + ": " + body);
+                return;
+            }
+        }
+
+        msg("Saving data...");
+        ajax.open("POST", "http://api.iscribblet.org/store", true);
+        ajax.setRequestHeader("Content-Type", "text/plain");
+        ajax.send(jsonData);
+    }
+
+    setInterval(saveData, 3000);
+
+    window.onbeforeunload = function () {
+        if (scribble.length > 0 && !saved) {
+            return "There is still unsaved scribble data.";
+        }
+    }
 
     // Repaints the scribble
     function repaint() {
@@ -242,17 +395,6 @@
         }
     };
 
-    // Load and save routines
-    /*
-    function exportScribble() {
-        scribble.unshift(colorIndex);
-        scribble.unshift(_documentBody.clientWidth);
-        exportData = scribble.join(',');
-        scribble.shift();
-        scribble.shift();
-    }
-    */
-
     // Event handlers
     isMouseDown = false;
 
@@ -290,6 +432,7 @@
         isMouseDown = true;
         lastX = e.clientX;
         lastY = e.clientY;
+        saved = false;
         scribble.push(lastX + scrollLeft);
         scribble.push(lastY + scrollTop);
     };
@@ -300,6 +443,7 @@
         }
 
         isMouseDown = false;
+        saved = false;
         scribble.push(e.clientX + scrollLeft);
         scribble.push(e.clientY + scrollTop);
         scribble.push(-1);
@@ -326,6 +470,7 @@
             }
         }
 
+        saved = false;
         scribble.push(x + scrollLeft);
         scribble.push(y + scrollTop);
 
@@ -360,6 +505,7 @@
         }
 
         if (isMouseDown) {
+            saved = false;
             scribble.push(-1);
         }
 
@@ -369,6 +515,7 @@
         isMouseDown = true;
 
         //alert("touch start: " + lastX + ", " + lastY);
+        saved = false;
         scribble.push(lastX + scrollLeft);
         scribble.push(lastY + scrollTop);
         e.preventDefault();
@@ -382,6 +529,7 @@
                 return;
             }
             isMouseDown = false;
+            saved = false;
             scribble.push(e.touches[0].clientX + scrollLeft);
             scribble.push(e.touches[0].clientY + scrollTop);
             scribble.push(-1);
@@ -424,6 +572,7 @@
         }
 
         //alert("touch move: " + temp + " " + temp2);
+        saved = false;
         scribble.push(x + scrollLeft);
         scribble.push(y + scrollTop);
 
