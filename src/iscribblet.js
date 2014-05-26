@@ -322,28 +322,40 @@
             return;
         }
 
-        var apiName
-        var list
-        var nPoints = 0
-        var savedLen = scribble.length
+        var apiName;
+        var nPoints = 0;
+        var savedLen = scribble.length;
+        var encoded;
 
         if (lastSaved == 0 || lastSaved >= savedLen) {
-            list = scribble;
+            encoded = encodePoints(scribble, 0, 0);
             nPoints = savedLen;
             apiName = "store";
 
         } else {
             nPoints = scribble.length - lastSaved
+            var prevX = 0, prevY = 0;
+            for (var i = lastSaved - 1; i > 0; i--) {
+                if (scribble[i] == -1) {
+                    continue;
+                }
+                prevY = scribble[i];
+                prevX = scribble[i - 1];
+                break;
+            }
+            console.log("prevX == " + prevX + ", prevY == " + prevY)
+
             list = new Array()
-            for (i = lastSaved; i < savedLen; i++) {
+            for (var i = lastSaved; i < savedLen; i++) {
                 list.push(scribble[i])
             }
             apiName = "append";
+            encoded = encodePoints(list, prevX, prevY);
         }
 
         var jsonData = JSON.stringify({
             "url": url,
-            "points": (apiName == "append" ? " " : "") + encodePoints(list)
+            "points": (apiName == "append" ? " " : "") + encoded
         })
         saving = true;
 
@@ -645,18 +657,13 @@
     });
 
     var dict = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
-    function encodePoints(points) {
-        var x = 0;
-        var y = 0;
+    function encodePoints(points, x, y) {
         var result = [];
-        var l;
 
         for (var i = 0; i < points.length; i += 2) {
             var newX = points[i];
             if (newX == -1) {
                 result.push(" ");
-                x = 0;
-                y = 0;
                 i--;
                 continue;
             }
@@ -711,20 +718,34 @@
     }
 
     function decodePoints(s) {
+        var len = s.length;
         //output("s: " + s);
-        var segs = s.split(/ +/);
-        //output("Found " + segs.length + " segments.");
+        var num = null;
         var result = [];
-        for (var i = segs.length - 1; i >= 0; i--) {
-            var seg = segs[i];
-            var len = seg.length;
-            //output("segment: " + seg);
-            //output("segment length: " + len);
-            var num = null;
-            for (var j = len - 1; j >= 0; j--) {
-                var c = seg.charAt(j)
-                n = inversedDict[c]
+        for (var i = len - 1; i >= 0; i--) {
+            var c = s.charAt(i)
+            //output("processing char '" + c + "'")
+            if (c == " ") {
+                if (num != null) {
+                    //output("index == " + num);
+                    // inverting the Cantor pairing function
+                    var w = Math.floor((Math.sqrt(8 * num + 1) - 1) / 2)
+                    var t = (w * w  + w) / 2
+                    var dy = num - t
+                    var dx = w - dy
+                    result.unshift(dy)
+                    result.unshift(dx)
+                    num = null;
+                }
+
+                if (i > 0 && (result.length == 0 || result[0] != -1)) {
+                    result.unshift(-1);
+                }
+
+            } else {
+                var n = inversedDict[c]
                 if (n == null) {
+                    //output("bad char: " + c);
                     throw "bad char: " + c;
                 }
                 if (n < 32) {  // last
@@ -746,21 +767,18 @@
                     num = num * 32 + n;
                 }
             }
+        }
 
-            if (num != null) {
-                //output("index == " + num);
-                // inverting the Cantor pairing function
-                var w = Math.floor((Math.sqrt(8 * num + 1) - 1) / 2)
-                var t = (w * w  + w) / 2
-                var dy = num - t
-                var dx = w - dy
-                result.unshift(dy)
-                result.unshift(dx)
-            }
-
-            if (i > 0) {
-                result.unshift(-1);
-            }
+        if (num != null) {
+            //output("index == " + num);
+            // inverting the Cantor pairing function
+            var w = Math.floor((Math.sqrt(8 * num + 1) - 1) / 2)
+            var t = (w * w  + w) / 2
+            var dy = num - t
+            var dx = w - dy
+            result.unshift(dy)
+            result.unshift(dx)
+            num = null;
         }
 
         var x = 0
@@ -768,8 +786,6 @@
         for (var i = 0; i < result.length; i += 2) {
             var dx = result[i];
             if (dx == -1) {
-                x = 0;
-                y = 0;
                 i--;
                 continue;
             }
