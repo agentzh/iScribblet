@@ -259,7 +259,7 @@
                         return;
                     }
 
-                    msg("History data loaded (" + (text.length / 1024).toFixed(2)
+                    msg("History data loaded (" + (text.length / 1024).toFixed(3)
                         + " KB, " + hist.length + " points)");
                     hideMsg();
                     historyLoaded = true;
@@ -372,7 +372,7 @@
             }
         }
 
-        msg("Saving data...(" + (jsonData / 1024).toFixed(2) + " KB, "
+        msg("Saving data...(" + (jsonData / 1024).toFixed(3) + " KB, "
             + nPoints +  " points)");
         ajax.open("POST", "https://api.iscribblet.org/" + apiName, true);
         ajax.setRequestHeader("Content-Type", "text/plain");
