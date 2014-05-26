@@ -250,7 +250,14 @@
                         return
                     }
 
-                    var hist = text.split(/ +/);
+                    var hist;
+                    try {
+                        hist = decodePoints(text);
+
+                    } catch (e) {
+                        msg("Failed to decode points data: " + e)
+                        return;
+                    }
 
                     msg("History data loaded (" + (text.length / 1024).toFixed(2)
                         + " KB, " + hist.length + " points)");
@@ -258,9 +265,7 @@
                     historyLoaded = true;
                     lastSaved = hist.length;
 
-                    var i
-
-                    for (i = 0; i < hist.length; i++) {
+                    for (var i = 0; i < hist.length; i++) {
                         var n = parseInt(hist[i])
                         if (isNaN(n)) {
                             msg("Server returned invalid number: " + hist[i])
@@ -269,7 +274,7 @@
                         hist[i] = n
                     }
 
-                    for (i = 0; i < scribble.length; i++) {
+                    for (var i = 0; i < scribble.length; i++) {
                         hist.push(scribble[i]);
                     }
 
@@ -322,14 +327,16 @@
         } else {
             nPoints = scribble.length - lastSaved
             list = new Array()
-            list.push("")
             for (i = lastSaved; i < scribble.length; i++) {
                 list.push(scribble[i])
             }
             apiName = "append";
         }
 
-        var jsonData = JSON.stringify({"url": url, "points": list.join(" ")})
+        var jsonData = JSON.stringify({
+            "url": url,
+            "points": (apiName == "append" ? " " : "") + encodePoints(list)
+        })
         saved = true;
 
         var ajax = new XMLHttpRequest();
@@ -372,7 +379,7 @@
         ajax.send(jsonData);
     }
 
-    setInterval(saveData, 3000);
+    setInterval(saveData, 10000);
 
     window.onbeforeunload = function () {
         if (scribble.length > 0 && !saved) {
@@ -625,6 +632,163 @@
         e.preventDefault();
         return false;
     });
+
+    var dict = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+    function encodePoints(points) {
+        var x = 0;
+        var y = 0;
+        var result = [];
+        var l;
+
+        for (var i = 0; i < points.length; i += 2) {
+            var newX = points[i];
+            if (newX == -1) {
+                result.push(" ");
+                x = 0;
+                y = 0;
+                i--;
+                continue;
+            }
+
+            var newY = points[i + 1];
+
+            // step 3: calculate the delta.
+            var dx = newX - x;
+            var dy = newY - y;
+            x = newX;
+            y = newY;
+
+            //output("dx = " + dx);
+            //output("dy = " + dy);
+
+            // step 4 and 5: turn all numbers to positive.
+            dx = (dx << 1) ^ (dx >> 31);
+            dy = (dy << 1) ^ (dy >> 31);
+
+            //output("dx' = " + dx);
+            //output("dy' = " + dy);
+
+            // step 6: use Cantor pairing function to combine x & y.
+            var index = ((dy + dx) * (dy + dx + 1) / 2) + dy;
+
+            //output("index = " + index)
+
+            while (index > 0) {
+
+                // step 7
+                var rem = index & 31;
+                index = (index - rem) / 32;
+
+                // step 8
+                if (index > 0) rem += 32;
+
+                // step 9
+                result.push(dict[rem]);
+            }
+        }
+
+        // step 10
+        return result.join("");
+    }
+
+    var inversedDict = {}
+    {
+        var arr = dict.split("")
+        for (var i = 0; i < arr.length; i++) {
+            inversedDict[arr[i]] = i
+        }
+    }
+
+    function decodePoints(s) {
+        //output("s: " + s);
+        var segs = s.split(/ +/);
+        //output("Found " + segs.length + " segments.");
+        var result = [];
+        for (var i = segs.length - 1; i >= 0; i--) {
+            var seg = segs[i];
+            var len = seg.length;
+            //output("segment: " + seg);
+            //output("segment length: " + len);
+            var num = null;
+            for (var j = len - 1; j >= 0; j--) {
+                var c = seg.charAt(j)
+                n = inversedDict[c]
+                if (n == null) {
+                    throw "bad char: " + c;
+                }
+                if (n < 32) {  // last
+                    if (num != null) {
+                        //output("index == " + num);
+                        // inverting the Cantor pairing function
+                        var w = Math.floor((Math.sqrt(8 * num + 1) - 1) / 2)
+                        var t = (w * w  + w) / 2
+                        var dy = num - t
+                        var dx = w - dy
+                        result.unshift(dy)
+                        result.unshift(dx)
+                    }
+
+                    num = n;
+
+                } else {
+                    n -= 32;
+                    num = num * 32 + n;
+                }
+            }
+
+            if (num != null) {
+                //output("index == " + num);
+                // inverting the Cantor pairing function
+                var w = Math.floor((Math.sqrt(8 * num + 1) - 1) / 2)
+                var t = (w * w  + w) / 2
+                var dy = num - t
+                var dx = w - dy
+                result.unshift(dy)
+                result.unshift(dx)
+            }
+
+            if (i > 0) {
+                result.unshift(-1);
+            }
+        }
+
+        var x = 0
+        var y = 0
+        for (var i = 0; i < result.length; i += 2) {
+            var dx = result[i];
+            if (dx == -1) {
+                x = 0;
+                y = 0;
+                i--;
+                continue;
+            }
+            var dy = result[i + 1]
+
+            if (dx % 2 == 0) {  // posive number
+                dx = dx / 2;
+
+            } else {  // negative number
+                dx = -(dx + 1) / 2
+            }
+
+            if (dy % 2 == 0) {  // posive number
+                dy = dy / 2;
+
+            } else {  // negative number
+                dy = -(dy + 1) / 2
+            }
+
+            x += dx;
+            y += dy;
+
+            //output("dx = " + dx)
+            //output("dy = " + dy)
+            result[i] = x
+            result[i + 1] = y
+        }
+
+        return result;
+    }
 
     loadHistory();
 })();
