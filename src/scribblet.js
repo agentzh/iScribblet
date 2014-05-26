@@ -35,7 +35,6 @@
         scrollLeft;
 
     // "Constant" definitions
-    LINE_COLORS = ['red', 'lime', 'blue', 'black'];
     LINE_WIDTH = 1;
 
     var saved = true;
@@ -45,6 +44,10 @@
     _window = window;
     _document = document;
     _documentBody = _document.body;
+
+    // Current stroke color
+    colorIndex = 0;
+    strokeColor = 'red';
 
     function _createElement(tagName) {
         return _document.createElement(tagName);
@@ -67,10 +70,6 @@
         content = "minimal-ui"
     }
     document.getElementsByTagName('head')[0].appendChild(meta);
-
-    // Current stroke color
-    colorIndex = 0;
-    strokeColor = 'red';
 
     // Holds the internal representation of the current scribbble
     scribble = [];
@@ -185,6 +184,7 @@
             scribble.pop();
         }
         if (hits) {
+            saved = false;
             repaint();
         }
         //alert(hits + " hits.");
@@ -230,8 +230,6 @@
     }
 
     var historyLoaded = false;
-
-    loadHistory();
 
     function loadHistory() {
         var ajax = new XMLHttpRequest();
@@ -284,7 +282,7 @@
         }
 
         msg("Loading history...");
-        ajax.open("POST", "http://api.iscribblet.org/fetch", true);
+        ajax.open("POST", "https://api.iscribblet.org/fetch", true);
         ajax.setRequestHeader("Content-Type", "text/plain");
         ajax.send(url);
     }
@@ -298,11 +296,6 @@
 
         if (saved) {
             //msg("already saved");
-            return;
-        }
-
-        if (scribble.length == 0) {
-            //msg("no scribble to save");
             return;
         }
 
@@ -341,7 +334,7 @@
         }
 
         msg("Saving data...");
-        ajax.open("POST", "http://api.iscribblet.org/store", true);
+        ajax.open("POST", "https://api.iscribblet.org/store", true);
         ajax.setRequestHeader("Content-Type", "text/plain");
         ajax.send(jsonData);
     }
@@ -464,11 +457,13 @@
         var x = e.clientX;
         var y = e.clientY;
 
+        /*
         if (lastX >= 0 && lastY >= 0) {
-            if (Math.abs(x - lastX) >= 30 || Math.abs(y - lastY) >= 30) {
+            if (Math.abs(x - lastX) >= 100 || Math.abs(y - lastY) >= 100) {
                 return false;
             }
         }
+        */
 
         saved = false;
         scribble.push(x + scrollLeft);
@@ -564,12 +559,14 @@
             }
         }
 
+        /*
         if (lastX >= 0 && lastY >= 0) {
             if (Math.abs(x - lastX) >= 30 || Math.abs(y - lastY) >= 30) {
                 e.preventDefault();
                 return false;
             }
         }
+        */
 
         //alert("touch move: " + temp + " " + temp2);
         saved = false;
@@ -590,4 +587,6 @@
         e.preventDefault();
         return false;
     });
+
+    loadHistory();
 })();
