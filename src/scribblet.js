@@ -38,6 +38,7 @@
     LINE_WIDTH = 1;
 
     var saved = true;
+    var lastSaved = 0;
 
     // Assign DOM objects and functions to variables. This results in smaller
     // code after minification.
@@ -185,6 +186,7 @@
         }
         if (hits) {
             saved = false;
+            lastSaved = 0;
             repaint();
         }
         //alert(hits + " hits.");
@@ -225,7 +227,7 @@
 
     function hideMsg() {
         if (!hideTimer) {
-            hideTimer = setTimeout(doHideMsg, 3000);
+            hideTimer = setTimeout(doHideMsg, 5000);
         }
     }
 
@@ -238,29 +240,39 @@
                 var status = ajax.status
                 if (status == 200) {
                     //alert(ajax.responseText);
-                    var json = ajax.responseText;
-                    if (json == "") {
-                        msg("Fetched JSON data is empty");
+                    var text = ajax.responseText;
+                    if (text == "") {
+                        lastSaved = 0;
+                        historyLoaded = true;
+                        scribble = [];
+                        msg("Fetched history data is empty");
+                        hideMsg();
                         return
                     }
 
-                    var hist;
-                    try {
-                        hist = JSON.parse(json);
+                    var hist = text.split(/ +/);
 
-                    } catch (e) {
-                        msg("Faile to parse JSON: " + e);
-                        return;
-                    }
-
-                    msg("History data loaded.");
+                    msg("History data loaded (" + (text.length / 1024).toFixed(2)
+                        + " KB, " + hist.length + " points)");
                     hideMsg();
                     historyLoaded = true;
+                    lastSaved = hist.length;
 
                     var i
+
+                    for (i = 0; i < hist.length; i++) {
+                        var n = parseInt(hist[i])
+                        if (isNaN(n)) {
+                            msg("Server returned invalid number: " + hist[i])
+                            return
+                        }
+                        hist[i] = n
+                    }
+
                     for (i = 0; i < scribble.length; i++) {
                         hist.push(scribble[i]);
                     }
+
                     scribble = hist;
                     repaint();
                     return;
@@ -299,7 +311,25 @@
             return;
         }
 
-        var jsonData = JSON.stringify({"url": url, "points": JSON.stringify(scribble)})
+        var apiName
+        var list
+        var nPoints = 0
+        if (lastSaved == 0 || lastSaved >= scribble.length) {
+            list = scribble;
+            nPoints = scribble.length;
+            apiName = "store";
+
+        } else {
+            nPoints = scribble.length - lastSaved
+            list = new Array()
+            list.push("")
+            for (i = lastSaved; i < scribble.length; i++) {
+                list.push(scribble[i])
+            }
+            apiName = "append";
+        }
+
+        var jsonData = JSON.stringify({"url": url, "points": list.join(" ")})
         saved = true;
 
         var ajax = new XMLHttpRequest();
@@ -315,11 +345,13 @@
                         return
                     }
 
+                    lastSaved += nPoints;
                     msg(ans);
                     hideMsg();
                     return;
                 }
 
+                saved = false;
                 var body = ajax.responseText
                 if (body && body.length > 0) {
                     if (body.length > 30) {
@@ -333,8 +365,9 @@
             }
         }
 
-        msg("Saving data...");
-        ajax.open("POST", "https://api.iscribblet.org/store", true);
+        msg("Saving data...(" + (jsonData / 1024).toFixed(2) + " KB, "
+            + nPoints +  " points)");
+        ajax.open("POST", "https://api.iscribblet.org/" + apiName, true);
         ajax.setRequestHeader("Content-Type", "text/plain");
         ajax.send(jsonData);
     }
@@ -420,6 +453,11 @@
     canvas.onmousedown = function(e) {
         if (scrollMode) {
             return true;
+        }
+
+        if (isMouseDown) {
+            saved = false;
+            scribble.push(-1);
         }
 
         isMouseDown = true;
