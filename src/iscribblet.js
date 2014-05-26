@@ -119,6 +119,7 @@
         }
         scrollMode = !scrollMode;
         scrollButton.style.background = (scrollMode ? '#929292' : '#F2F2F2');
+        canvas.style.cursor = (scrollMode ? "default" : "crosshair");
         return false;
     }
 
@@ -343,7 +344,7 @@
                 prevX = scribble[i - 1];
                 break;
             }
-            console.log("prevX == " + prevX + ", prevY == " + prevY)
+            //console.log("prevX == " + prevX + ", prevY == " + prevY)
 
             list = new Array()
             for (var i = lastSaved; i < savedLen; i++) {
