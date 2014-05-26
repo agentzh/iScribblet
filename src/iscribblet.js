@@ -177,6 +177,8 @@
         while (i >= 0 && scribble[i] == -1) {
             i--;
             scribble.pop();
+            lastSaved = 0;
+            saved = false;
         }
         while (i >= 0) {
             if (scribble[i--] == -1) {
@@ -306,6 +308,8 @@
         ajax.send(url);
     }
 
+    var saving = false
+
     function saveData() {
         if (!historyLoaded) {
             // TODO: append new data
@@ -313,7 +317,7 @@
             return;
         }
 
-        if (saved) {
+        if (saved || saving) {
             //msg("already saved");
             return;
         }
@@ -321,15 +325,17 @@
         var apiName
         var list
         var nPoints = 0
-        if (lastSaved == 0 || lastSaved >= scribble.length) {
+        var savedLen = scribble.length
+
+        if (lastSaved == 0 || lastSaved >= savedLen) {
             list = scribble;
-            nPoints = scribble.length;
+            nPoints = savedLen;
             apiName = "store";
 
         } else {
             nPoints = scribble.length - lastSaved
             list = new Array()
-            for (i = lastSaved; i < scribble.length; i++) {
+            for (i = lastSaved; i < savedLen; i++) {
                 list.push(scribble[i])
             }
             apiName = "append";
@@ -339,11 +345,13 @@
             "url": url,
             "points": (apiName == "append" ? " " : "") + encodePoints(list)
         })
-        saved = true;
+        saving = true;
 
         var ajax = new XMLHttpRequest();
         ajax.onreadystatechange = function() {
             if (ajax.readyState == 4) {
+                saving = false;
+
                 var status = ajax.status
                 if (status == 200) {
                     //alert(ajax.responseText);
@@ -354,6 +362,7 @@
                         return
                     }
 
+                    saved = true;
                     lastSaved += nPoints;
                     msg(ans);
                     hideMsg();
@@ -384,7 +393,7 @@
     setInterval(saveData, 5000);
 
     window.onbeforeunload = function () {
-        if (scribble.length > 0 && !saved) {
+        if ((scribble.length > 0 && !saved) || saving) {
             return "There is still unsaved scribble data.";
         }
     }
