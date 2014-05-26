@@ -81,7 +81,7 @@
     style.position = _absolute;
     style.left = _zeroPixels;
     style.top = _zeroPixels;
-    style.zIndex = '199';
+    style.zIndex = '1990';
     style.cursor = 'crosshair';
     _appendChild(_documentBody, canvas);
     canvasContext = canvas.getContext('2d');
@@ -93,7 +93,7 @@
     style.border = '1px solid #000';
     style.margin = '15px';
     style.position = 'fixed';
-    style.zIndex = '200';
+    style.zIndex = '2000';
     style.background = '#F2F2F2';
     style.opacity = MozOpacity = '0.9';
     style.top = 15 + _pixels;
@@ -121,6 +121,8 @@
         scrollButton.style.background = (scrollMode ? '#929292' : '#F2F2F2');
         return false;
     }
+
+    toggleScroll();
 
     scrollButton.addEventListener("click", toggleScroll, false);
 
