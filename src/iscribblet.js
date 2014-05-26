@@ -381,7 +381,7 @@
         ajax.send(jsonData);
     }
 
-    setInterval(saveData, 10000);
+    setInterval(saveData, 5000);
 
     window.onbeforeunload = function () {
         if (scribble.length > 0 && !saved) {
